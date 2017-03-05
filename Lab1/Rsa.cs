@@ -32,40 +32,64 @@ namespace Lab1
 
         public Rsa(int e, int keyLen, int certainty, Random rnd, bool optimize = true)
         {
-            _optimize = optimize;
-            BigInteger  f = BigInteger.One,     // Значение функции Эйлера от n
-                      gcd = BigInteger.Zero;    // НОД(e, f)
+            BigInteger p, q;                    // Секретные значения p и q
+            int comp;                           // Переменная для сравнения
 
-            _p.e = BigInteger.ValueOf(e);      // Устанавливаем e
+            _optimize = optimize;
+            _p.e = BigInteger.ValueOf(e);       // Устанавливаем экспоненту
 
             do
             {
                 // Генерируем p и q
-                _p.p = new BigInteger(keyLen / 2, certainty, rnd);
-                _p.q = new BigInteger(keyLen / 2, certainty, rnd);
+                p = new BigInteger(keyLen / 2, certainty, rnd);
+                q = new BigInteger(keyLen / 2, certainty, rnd);
 
-                if (_p.p.CompareTo(_p.q) == 0)             // Если они равны, генерируем заново
+                comp = p.CompareTo(q);    // Сравниваем p и q
+
+                if (comp == 0)                  // Если они равны, генерируем заново
                     continue;
-
-                _p.n = _p.p.Multiply(_p.q);  // Вычисляем n = p * q
-
-                // Вычисляем значение функции Эйлера от n
-                f = (_p.p.Subtract(BigInteger.One)).Multiply(_p.q.Subtract(BigInteger.One));
-
-                gcd = f.Gcd(_p.e);             // Вычисляем НОД(e, f)
+                else if (comp < 0)              // Если q больше p, меняем их местами
+                {
+                    BigInteger tmp = p;
+                    p = q;
+                    q = tmp;
+                }
             }
-            // Если общих делителей у e и f (кроме 1) нет, завершаем генерацию
-            while (gcd.CompareTo(BigInteger.One) != 0);
+            while (GenerateKeys(p, q));
+        }
 
-            _p.d = _p.e.ModInverse(f);        // Вычисляем d = e^(-1) mod f
+        public bool GenerateKeys(BigInteger p, BigInteger q)
+        {
+            BigInteger p1, q1,                  // (p - 1) и (q - 1)
+                       f = BigInteger.One,      // Значение функции Эйлера от n
+                       gcd = BigInteger.Zero;   // НОД(e, f)
+
+            p1 = p.Subtract(BigInteger.One);
+            q1 = q.Subtract(BigInteger.One);
+
+            // Вычисляем значение функции Эйлера от n
+            f = p1.Multiply(q1);
+
+            gcd = f.Gcd(_p.e);                  // Вычисляем НОД(e, f)
+
+            // Если общих делителей у e и f (кроме 1) нет, завершаем генерацию
+            if (gcd.CompareTo(BigInteger.One) != 0)
+                return true;
+
+            _p.p = p;
+            _p.q = q;
+            _p.n = p.Multiply(q);               // Вычисляем n = p * q
+            _p.d = _p.e.ModInverse(f);          // Вычисляем d = e^(-1) mod f
 
             if (_optimize)
             {
                 // Вычисляем вспомогательные параметры
-                _p.dP = _p.d.Mod(_p.p.Subtract(BigInteger.One));
-                _p.dQ = _p.d.Mod(_p.q.Subtract(BigInteger.One));
-                _p.qInv = _p.q.ModInverse(_p.p);
+                _p.dP = _p.d.Mod(p1);
+                _p.dQ = _p.d.Mod(q1);
+                _p.qInv = q.ModInverse(p);
             }
+
+            return false;
         }
 
         public BigInteger Encrypt(BigInteger m)
