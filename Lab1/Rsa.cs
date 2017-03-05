@@ -16,83 +16,108 @@ namespace Lab1
                               dP, dQ, qInv;
         }
 
-        public static RsaParams GenerateKeys(int e, int keyLen, int certainty, Random rnd)
+        private RsaParams _p;
+        private bool _optimize;
+
+        public RsaParams Params
         {
-            RsaParams res = new RsaParams();
+            get { return _p; }
+            set { _p = value; }
+        }
+
+        public Rsa(bool optimize = true)
+        {
+            _optimize = optimize;
+        }
+
+        public Rsa(int e, int keyLen, int certainty, Random rnd, bool optimize = true)
+        {
+            _optimize = optimize;
             BigInteger  f = BigInteger.One,     // Значение функции Эйлера от n
                       gcd = BigInteger.Zero;    // НОД(e, f)
 
-            res.e = BigInteger.ValueOf(e);      // Устанавливаем e
+            _p.e = BigInteger.ValueOf(e);      // Устанавливаем e
 
             do
             {
                 // Генерируем p и q
-                res.p = new BigInteger(keyLen / 2, certainty, rnd);
-                res.q = new BigInteger(keyLen / 2, certainty, rnd);
+                _p.p = new BigInteger(keyLen / 2, certainty, rnd);
+                _p.q = new BigInteger(keyLen / 2, certainty, rnd);
 
-                if (res.p.CompareTo(res.q) == 0)             // Если они равны, генерируем заново
+                if (_p.p.CompareTo(_p.q) == 0)             // Если они равны, генерируем заново
                     continue;
 
-                res.n = res.p.Multiply(res.q);  // Вычисляем n = p * q
+                _p.n = _p.p.Multiply(_p.q);  // Вычисляем n = p * q
 
                 // Вычисляем значение функции Эйлера от n
-                f = (res.p.Subtract(BigInteger.One)).Multiply(res.q.Subtract(BigInteger.One));
+                f = (_p.p.Subtract(BigInteger.One)).Multiply(_p.q.Subtract(BigInteger.One));
 
-                gcd = f.Gcd(res.e);             // Вычисляем НОД(e, f)
+                gcd = f.Gcd(_p.e);             // Вычисляем НОД(e, f)
             }
             // Если общих делителей у e и f (кроме 1) нет, завершаем генерацию
             while (gcd.CompareTo(BigInteger.One) != 0);
 
-            res.d = res.e.ModInverse(f);        // Вычисляем d = e^(-1) mod f
+            _p.d = _p.e.ModInverse(f);        // Вычисляем d = e^(-1) mod f
 
-            // Вычисляем вспомогательные параметры
-            res.dP = res.d.Mod(res.p.Subtract(BigInteger.One));
-            res.dQ = res.d.Mod(res.q.Subtract(BigInteger.One));
-            res.qInv = res.q.ModInverse(res.p);
-
-            return res;
+            if (_optimize)
+            {
+                // Вычисляем вспомогательные параметры
+                _p.dP = _p.d.Mod(_p.p.Subtract(BigInteger.One));
+                _p.dQ = _p.d.Mod(_p.q.Subtract(BigInteger.One));
+                _p.qInv = _p.q.ModInverse(_p.p);
+            }
         }
 
-        public static BigInteger Encrypt(BigInteger m, RsaParams param)
+        public BigInteger Encrypt(BigInteger m)
         {
             // Если пришло отрицательное число - кидаем исключение
             if (m.SignValue < 0)
                 throw new ArgumentOutOfRangeException("m", "Message must be in range [0..N-1]");
 
             // Шифруем "число" только при условии, что оно меньше модуля
-            if (m.CompareTo(param.n) < 0)
-                return m.ModPow(param.e, param.n);
+            if (m.CompareTo(_p.n) < 0)
+                return m.ModPow(_p.e, _p.n);
             else
                 throw new ArgumentOutOfRangeException("m", "Message must be less than N");
         }
 
-        public static BigInteger Decrypt(BigInteger c, RsaParams param)
+        public BigInteger Decrypt(BigInteger c)
         {
             // Если пришло отрицательное число - кидаем исключение
             if (c.SignValue < 0)
-                throw new ArgumentOutOfRangeException("c", "Encrypted message must be in range [0..N-1]");
+                throw new ArgumentOutOfRangeException("c", "Ciphertext must be in range [0..N-1]");
 
-            BigInteger m1 = c.ModPow(param.dP, param.p);                    // c ^ (dP) mod p
-            BigInteger m2 = c.ModPow(param.dQ, param.q);                    // c ^ (dQ) mod q
-            BigInteger dM;
+            // Расшифровываем "число" только при условии, что оно меньше модуля
+            if (c.CompareTo(_p.n) >= 0)
+                throw new ArgumentOutOfRangeException("c", "Ciphertext must be less than N");
 
-            if (m1.CompareTo(m2) < 0)                                       // m1 < m2 ?
+            // Использовать оптимизацию с китайской теоремой об остатках?
+            if (_optimize)
             {
-                BigInteger[] divRem = param.q.DivideAndRemainder(param.p);  // q / p
+                BigInteger m1 = c.ModPow(_p.dP, _p.p);                  // c ^ (dP) mod p
+                BigInteger m2 = c.ModPow(_p.dQ, _p.q);                  // c ^ (dQ) mod q
+                BigInteger dM;
 
-                if (divRem[1].SignValue != 0)                               // [q / p]
-                    divRem[0].Add(BigInteger.One);
+                if (m1.CompareTo(m2) < 0)                               // m1 < m2 ?
+                {
+                    BigInteger[] divRem = _p.q.DivideAndRemainder(_p.p);    // q / p
 
-                dM = divRem[0].Multiply(param.p);                           // [q / p] * p
-                dM = dM.Add(m1);                                            // m1 + [q / p] * p
-                dM = dM.Subtract(m2);                                       // (m1 + [q / p] * p) - m2
+                    if (divRem[1].SignValue != 0)                       // [q / p]
+                        divRem[0].Add(BigInteger.One);
+
+                    dM = divRem[0].Multiply(_p.p);                      // [q / p] * p
+                    dM = dM.Add(m1);                                    // m1 + [q / p] * p
+                    dM = dM.Subtract(m2);                               // (m1 + [q / p] * p) - m2
+                }
+                else
+                    dM = m1.Subtract(m2);
+
+                BigInteger h = (_p.qInv.Multiply(dM)).Mod(_p.p);        // (qInv * dM) mod p
+
+                return (h.Multiply(_p.q)).Add(m2);                      // m = hq + m2
             }
             else
-                dM = m1.Subtract(m2);
-
-            BigInteger h = (param.qInv.Multiply(dM)).Mod(param.p);          // (qInv * dM) mod p
-
-            return (h.Multiply(param.q)).Add(m2);                           // m = hq + m2
+                return c.ModPow(_p.d, _p.n);
         }
     }
 }
