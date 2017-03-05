@@ -16,7 +16,7 @@ namespace Lab1
                               dP, dQ, qInv;
         }
 
-        public static RsaParams GenerateKeys(int e, int keyLen, Random rnd)
+        public static RsaParams GenerateKeys(int e, int keyLen, int certainty, Random rnd)
         {
             RsaParams res = new RsaParams();
             BigInteger  f = BigInteger.One,     // Значение функции Эйлера от n
@@ -27,10 +27,10 @@ namespace Lab1
             do
             {
                 // Генерируем p и q
-                res.p = BigInteger.ProbablePrime(keyLen / 2, rnd);
-                res.q = BigInteger.ProbablePrime(keyLen / 2, rnd);
-                
-                if (res.p == res.q)             // Если они равны, генерируем заново
+                res.p = new BigInteger(keyLen / 2, certainty, rnd);
+                res.q = new BigInteger(keyLen / 2, certainty, rnd);
+
+                if (res.p.CompareTo(res.q) == 0)             // Если они равны, генерируем заново
                     continue;
 
                 res.n = res.p.Multiply(res.q);  // Вычисляем n = p * q
@@ -41,7 +41,7 @@ namespace Lab1
                 gcd = f.Gcd(res.e);             // Вычисляем НОД(e, f)
             }
             // Если общих делителей у e и f (кроме 1) нет, завершаем генерацию
-            while (gcd != BigInteger.One);
+            while (gcd.CompareTo(BigInteger.One) != 0);
 
             res.d = res.e.ModInverse(f);        // Вычисляем d = e^(-1) mod f
 
@@ -80,7 +80,7 @@ namespace Lab1
             {
                 BigInteger[] divRem = param.q.DivideAndRemainder(param.p);  // q / p
 
-                if (divRem[1] != BigInteger.Zero)                           // [q / p]
+                if (divRem[1].SignValue != 0)                               // [q / p]
                     divRem[0].Add(BigInteger.One);
 
                 dM = divRem[0].Multiply(param.p);                           // [q / p] * p
