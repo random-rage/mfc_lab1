@@ -56,9 +56,8 @@ namespace Lab1
 
         public bool GenerateKeys(BigInteger p, BigInteger q)
         {
-            BigInteger p1, q1,                  // (p - 1) и (q - 1)
-                       f = BigInteger.One,      // Значение функции Эйлера от n
-                       gcd = BigInteger.Zero;   // НОД(e, f)
+            BigInteger p1, q1,          // (p - 1) и (q - 1)
+                       f, gcd;          // Значение функции Эйлера от n и НОД(e, f)
 
             p1 = p.Subtract(BigInteger.One);
             q1 = q.Subtract(BigInteger.One);
