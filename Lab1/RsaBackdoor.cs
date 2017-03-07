@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Security.Cryptography;
 using Org.BouncyCastle.Math;
 using Chaos.NaCl;
@@ -46,16 +42,36 @@ namespace Lab1
             return rsa;
         }
 
-        public static Rsa Extract(int e, BigInteger n, int certainty, byte[] privateKey)
+        public static Rsa Extract(int e, BigInteger mod, int certainty, byte[] privateKey)
         {
-            byte[] mod = n.ToByteArray();
+            byte[] modulus = mod.ToByteArray();
             byte[] payload = new byte[MontgomeryCurve25519.PublicKeySizeInBytes];
 
             // Вытаскиваем полезную нагрузку и расшифровываем seed
-            Array.Copy(mod, 80, payload, 0, 32);
+            Array.Copy(modulus, 80, payload, 0, 32);
             byte[] seed = MontgomeryCurve25519.KeyExchange(payload, privateKey);
 
-            return new Rsa(e, n.BitLength, certainty, new Random(seed.PackToInt()));
+            Rsa rsa = new Rsa(e, mod.BitLength, certainty, new Random(seed.PackToInt()));
+            Rsa.RsaParams rsap = rsa.Params;
+
+            // Вшиваем полезную нагрузку в модуль n
+            modulus = rsap.n.ToByteArray();
+            Replace(modulus, payload, 80);
+            BigInteger n = new BigInteger(modulus);
+
+            // q = NextPrime(n' / p)
+            rsap.q = (n.Divide(rsap.p)).NextProbablePrime();
+
+            if (rsap.p.CompareTo(rsap.q) < 0)   // Если q больше p, меняем их местами
+            {
+                BigInteger tmp = rsap.p;
+                rsap.p = rsap.q;
+                rsap.q = tmp;
+            }
+
+            // Заново считаем остальные параметры
+            rsa.GenerateKeys(rsap.p, rsap.q);
+            return rsa;
         }
 
         private static int PackToInt(this byte[] bytes)
