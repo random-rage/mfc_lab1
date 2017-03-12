@@ -12,6 +12,7 @@ namespace Lab1
         const int E = 65537;
         const int KEY_SIZE = 2048;
         const int CERTAINTY = 200;
+        const int SEED = 1635901897;
 
         const string SAMPLE = "This is example text";
         const string PUBLIC_KEY =   "06F1A4EDF328C5E44AD32D5AA33FB7EF10B9A0FEE3AC1D3BA8E2FACD97643A43";
@@ -107,6 +108,38 @@ namespace Lab1
                 return false;
             }
             return Encoding.ASCII.GetString(result) == SAMPLE;
+        }
+
+        static void SpeedTest(int e, int keyLen, int certainty, int seed, bool optimize)
+        {
+            byte[] bytes = Encoding.ASCII.GetBytes(SAMPLE);
+            BigInteger var = new BigInteger(bytes);
+            Console.WriteLine("<Speed> test: keyLen = {0}, optimize = {1}", keyLen, optimize);
+
+            DateTime start = DateTime.Now;
+            Rsa rsa = new Rsa(e, keyLen, certainty, new Random(seed), optimize);
+            BigInteger enc = rsa.Encrypt(var);
+            var = rsa.Decrypt(enc);
+            TimeSpan timeSpan = DateTime.Now - start;
+            
+            Console.WriteLine("Time: {0}", timeSpan.TotalMilliseconds);
+            GC.Collect();
+        }
+
+        static void BackdoorSpeedTest(int e, int keyLen, int certainty, string pubKey)
+        {
+            byte[] bytes = Encoding.ASCII.GetBytes(SAMPLE);
+            BigInteger var = new BigInteger(bytes);
+            Console.WriteLine("[Backdoor] <Speed> test: keyLen = {0}", keyLen);
+
+            DateTime start = DateTime.Now;
+            Rsa backdoored = RsaBackdoor.Inject(e, keyLen, certainty, StrToBytes(pubKey));
+            BigInteger enc = backdoored.Encrypt(var);
+            var = backdoored.Decrypt(enc);
+            TimeSpan timeSpan = DateTime.Now - start;
+
+            Console.WriteLine("Time: {0}", timeSpan.TotalMilliseconds);
+            GC.Collect();
         }
 
         static byte[] StrToBytes(string hex)
