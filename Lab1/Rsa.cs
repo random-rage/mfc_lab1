@@ -7,8 +7,8 @@ namespace Lab1
     {
         public struct RsaParams
         {
-            public BigInteger p, q, 
-                              e, d, n, 
+            public BigInteger p, q,
+                              e, d, n,
                               dP, dQ, qInv;
         }
 
@@ -21,18 +21,17 @@ namespace Lab1
             set { _p = value; }
         }
 
-        public Rsa(bool optimize = true)
+        public Rsa(int e, bool optimize = true)
         {
             _optimize = optimize;
+            _p = new RsaParams();
+            _p.e = BigInteger.ValueOf(e);       // Устанавливаем экспоненту
         }
 
-        public Rsa(int e, int keyLen, int certainty, Random rnd, bool optimize = true)
+        public Rsa(int e, int keyLen, int certainty, Random rnd, bool optimize = true) : this(e, optimize)
         {
             BigInteger p, q;                    // Секретные значения p и q
             int comp;                           // Переменная для сравнения
-
-            _optimize = optimize;
-            _p.e = BigInteger.ValueOf(e);       // Устанавливаем экспоненту
 
             do
             {
