@@ -38,7 +38,7 @@ namespace Lab1
 
         static bool SelfTest(int e, int keyLen, int certainty, bool optimize)
         {
-            Rsa rsa = new Rsa(e, keyLen, certainty, new Random(), optimize);
+            Rsa rsa = new Rsa(BigInteger.ValueOf(e), keyLen, certainty, new Random(), optimize);
             byte[] result, bytes = Encoding.ASCII.GetBytes(SAMPLE);
 
             BigInteger enc = rsa.Encrypt(new BigInteger(1, bytes));
@@ -55,7 +55,7 @@ namespace Lab1
 
         static bool OriginTest(int e, int keyLen, int certainty)
         {
-            Rsa testRsa = new Rsa(e, keyLen, certainty, new Random(), true);
+            Rsa testRsa = new Rsa(BigInteger.ValueOf(e), keyLen, certainty, new Random(), true);
             RSACryptoServiceProvider origin = new RSACryptoServiceProvider();
 
             RSAParameters originParams = new RSAParameters();
@@ -94,8 +94,8 @@ namespace Lab1
 
         static bool BackdoorTest(int e, int keyLen, int certainty, string pubKey, string privKey)
         {
-            Rsa backdoored = RsaBackdoor.Inject(e, keyLen, certainty, StrToBytes(pubKey));
-            Rsa recovered = RsaBackdoor.Extract(e, backdoored.Params.n, certainty, StrToBytes(privKey));
+            Rsa backdoored = RsaBackdoor.Inject(BigInteger.ValueOf(e), keyLen, certainty, StrToBytes(pubKey));
+            Rsa recovered = RsaBackdoor.Extract(BigInteger.ValueOf(e), backdoored.Params.n, certainty, StrToBytes(privKey));
 
             byte[] result, bytes = Encoding.ASCII.GetBytes(SAMPLE);
             BigInteger enc = backdoored.Encrypt(new BigInteger(1, bytes));
@@ -117,7 +117,7 @@ namespace Lab1
             Console.WriteLine("<Speed> test: keyLen = {0}, optimize = {1}", keyLen, optimize);
 
             DateTime start = DateTime.Now;
-            Rsa rsa = new Rsa(e, keyLen, certainty, new Random(seed), optimize);
+            Rsa rsa = new Rsa(BigInteger.ValueOf(e), keyLen, certainty, new Random(seed), optimize);
             BigInteger enc = rsa.Encrypt(var);
             var = rsa.Decrypt(enc);
             TimeSpan timeSpan = DateTime.Now - start;
@@ -133,7 +133,7 @@ namespace Lab1
             Console.WriteLine("[Backdoor] <Speed> test: keyLen = {0}", keyLen);
 
             DateTime start = DateTime.Now;
-            Rsa backdoored = RsaBackdoor.Inject(e, keyLen, certainty, StrToBytes(pubKey));
+            Rsa backdoored = RsaBackdoor.Inject(BigInteger.ValueOf(e), keyLen, certainty, StrToBytes(pubKey));
             BigInteger enc = backdoored.Encrypt(var);
             var = backdoored.Decrypt(enc);
             TimeSpan timeSpan = DateTime.Now - start;
